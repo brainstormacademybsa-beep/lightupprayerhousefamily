@@ -11,7 +11,20 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Light Up" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
- <style>.netlify-badge,[class*="netlify"],a[href*="netlify"]{display:none !important;}</style>
+ <style type="text/css">
+  .netlify-badge,
+  [class*="netlify"],
+  a[href*="netlify"],
+  .netlify,
+  [style*="netlify"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    position: absolute !important;
+    z-index: -9999 !important;
+    pointer-events: none !important;
+  }
+</style>
   </head>
   <body>
     <div id="root"></div>
