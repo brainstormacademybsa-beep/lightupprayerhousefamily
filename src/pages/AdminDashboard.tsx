@@ -139,7 +139,7 @@ export default function AdminDashboard() {
   const { isGlobalMeetingLive, activeParticipantsCount, endGlobalLiveMeeting, startGlobalLiveMeeting } = useZoomSession();
   const [activeTab, setActiveTab] = useState<AdminTab>('members');
   const [loginMode, setLoginMode] = useState<'passcode' | 'google'>('passcode');
-  const [passcodeEmail, setPasscodeEmail] = useState('imosesstephen@gmail.com');
+  const [passcodeEmail, setPasscodeEmail] = useState('');
   const [adminPasscode, setAdminPasscode] = useState('');
   const [showPasscodeText, setShowPasscodeText] = useState(false);
   const [passcodeSubmitting, setPasscodeSubmitting] = useState(false);
@@ -1648,7 +1648,7 @@ export default function AdminDashboard() {
       return;
     }
     if (targetAdmin.email?.toLowerCase() === 'brainstormacademybsa@gmail.com' && newRole !== 'super_admin') {
-      alert('The root Super Admin account (brainstormacademybsa@gmail.com) cannot be modified or demoted.');
+      alert('The primary root Super Admin account is protected and cannot be modified or demoted.');
       return;
     }
 
@@ -2062,12 +2062,6 @@ export default function AdminDashboard() {
       }
     };
 
-    const handleQuickFillMaster = () => {
-      setPasscodeEmail('imosesstephen@gmail.com');
-      setAdminPasscode('LightUp2026!');
-      setPasscodeLocalError(null);
-    };
-
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#1A1F3C] p-4 text-white">
         <div className="bg-white/10 backdrop-blur-md p-6 sm:p-10 rounded-3xl shadow-2xl space-y-6 max-w-md w-full border border-white/20">
@@ -2131,7 +2125,7 @@ export default function AdminDashboard() {
                     required
                     value={passcodeEmail}
                     onChange={(e) => setPasscodeEmail(e.target.value)}
-                    placeholder="e.g. imosesstephen@gmail.com"
+                    placeholder="e.g. admin@lightupprayerhouse.org"
                     className="w-full pl-10 pr-4 py-3 bg-black/40 border border-white/15 rounded-xl text-sm text-white placeholder-gray-500 outline-none focus:border-[#F26522] focus:ring-1 focus:ring-[#F26522]"
                   />
                 </div>
@@ -2185,14 +2179,6 @@ export default function AdminDashboard() {
                   </>
                 )}
               </button>
-
-              <button
-                type="button"
-                onClick={handleQuickFillMaster}
-                className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
-              >
-                Auto-Fill Authorized Super Admin (imosesstephen@gmail.com)
-              </button>
             </form>
           )}
 
@@ -2210,7 +2196,6 @@ export default function AdminDashboard() {
                     type="button"
                     onClick={() => {
                       setLoginMode('passcode');
-                      handleQuickFillMaster();
                     }}
                     className="w-full mt-2 py-2 bg-[#F26522] hover:bg-[#d9561a] text-white rounded-lg text-xs font-bold uppercase tracking-wider text-center cursor-pointer transition-all shadow"
                   >

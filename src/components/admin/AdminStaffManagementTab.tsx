@@ -139,7 +139,7 @@ export default function AdminStaffManagementTab({ members }: AdminStaffManagemen
     }
 
     if (targetAdmin.email?.toLowerCase() === 'brainstormacademybsa@gmail.com' && newRole !== 'super_admin') {
-      alert('The root Super Admin account (brainstormacademybsa@gmail.com) cannot be modified or demoted.');
+      alert('The primary root Super Admin account is protected and cannot be modified or demoted.');
       return;
     }
 
@@ -186,7 +186,7 @@ export default function AdminStaffManagementTab({ members }: AdminStaffManagemen
             {isSuperAdmin && (
               <div className="pt-2 flex items-center space-x-2 text-[11px] text-gray-400 font-medium">
                 <ShieldCheck size={14} className="text-emerald-400 shrink-0" />
-                <span>Primary Super Admin: <strong className="text-white font-mono">brainstormacademybsa@gmail.com</strong></span>
+                <span>Authorization Level: <strong className="text-white font-semibold">Elevated Super Admin Access</strong></span>
               </div>
             )}
           </div>
