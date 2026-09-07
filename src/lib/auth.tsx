@@ -55,6 +55,54 @@ export async function checkIsEmailApprovedAdmin(email: string): Promise<{ approv
   return { approved: false, role: 'member' };
 }
 
+/**
+ * Retrieves an admin's custom password from Firestore or localStorage
+ */
+export async function getAdminCustomPassword(email: string): Promise<string | null> {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail) return null;
+  const docId = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
+  try {
+    const docRef = doc(db, 'admin_passwords', docId);
+    const snap = await getDoc(docRef);
+    if (snap.exists() && snap.data()?.password) {
+      return snap.data().password as string;
+    }
+  } catch (err) {
+    console.warn('Error reading custom admin password from Firestore:', err);
+  }
+  try {
+    const localPass = localStorage.getItem('lightup_admin_pass_' + docId);
+    if (localPass) return localPass;
+  } catch (e) {}
+
+  return null;
+}
+
+/**
+ * Saves or updates an admin's custom password in Firestore and localStorage
+ */
+export async function setAdminCustomPassword(email: string, password: string): Promise<boolean> {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanPass = (password || '').trim();
+  if (!cleanEmail || !cleanPass) return false;
+  const docId = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
+  try {
+    await setDoc(doc(db, 'admin_passwords', docId), {
+      email: cleanEmail,
+      password: cleanPass,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    console.warn('Error saving custom admin password to Firestore:', err);
+  }
+  try {
+    localStorage.setItem('lightup_admin_pass_' + docId, cleanPass);
+  } catch (e) {}
+
+  return true;
+}
+
 const LOCAL_STORAGE_AUTH_KEY = 'lightup_admin_passcode_session';
 const CACHED_PROFILE_KEY_PREFIX = 'lightup_user_profile_cache_';
 
@@ -66,6 +114,7 @@ interface AuthContextType {
   authError: string | null;
   login: () => Promise<boolean>;
   loginWithPasscode: (email: string, pass: string) => Promise<boolean>;
+  updateAdminPassword: (newPassword: string) => Promise<boolean>;
   logout: () => Promise<void>;
   clearAuthError: () => void;
 }
@@ -273,19 +322,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    const isValidPasscode = MASTER_ADMIN_PASSCODES.includes(cleanPass);
-    if (!isValidPasscode) {
-      setAuthError('Invalid Master Admin Passcode. Use the authorized administrator passcode.');
+    if (!cleanPass) {
+      setAuthError('Please enter your password.');
       setIsLoggingIn(false);
       return false;
     }
 
-    // STRICT CHECK: Only approved administrator email addresses are permitted
+    // STRICT CHECK 1: Only approved administrator email addresses are permitted
     const approval = await checkIsEmailApprovedAdmin(cleanEmail);
     if (!approval.approved) {
-      setAuthError('Unauthorized account.');
+      setAuthError('Unauthorized account. This email address has not been granted administrator permissions.');
       setIsLoggingIn(false);
       return false;
+    }
+
+    // Check if this admin already has a personal custom password registered
+    const existingCustomPass = await getAdminCustomPassword(cleanEmail);
+
+    if (existingCustomPass) {
+      // Admin HAS a custom password set up
+      const isCustomPassValid = (cleanPass === existingCustomPass);
+      const isMasterPassValid = MASTER_ADMIN_PASSCODES.includes(cleanPass);
+
+      if (!isCustomPassValid && !isMasterPassValid) {
+        setAuthError('Incorrect password. Please enter the personal password you created for your admin account.');
+        setIsLoggingIn(false);
+        return false;
+      }
+    } else {
+      // FIRST TIME ENTRY: Automatically register their personal custom password!
+      if (cleanPass.length < 4) {
+        setAuthError('First-time entry setup: Please choose a password at least 4 characters long.');
+        setIsLoggingIn(false);
+        return false;
+      }
+
+      await setAdminCustomPassword(cleanEmail, cleanPass);
     }
 
     try {
@@ -332,11 +404,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return true;
     } catch (err: any) {
-      setAuthError(err?.message || 'Failed to authenticate with passcode.');
+      setAuthError(err?.message || 'Failed to authenticate.');
       return false;
     } finally {
       setIsLoggingIn(false);
     }
+  };
+
+  const updateAdminPassword = async (newPassword: string): Promise<boolean> => {
+    if (!profile?.email) {
+      setAuthError('No active administrator session found.');
+      return false;
+    }
+    const cleanPass = newPassword.trim();
+    if (cleanPass.length < 4) {
+      setAuthError('New password must be at least 4 characters long.');
+      return false;
+    }
+
+    const success = await setAdminCustomPassword(profile.email, cleanPass);
+    if (success) {
+      setAuthError(null);
+    } else {
+      setAuthError('Failed to update admin password.');
+    }
+    return success;
   };
 
   const logout = async () => {
@@ -352,7 +444,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isLoggingIn, authError, login, loginWithPasscode, logout, clearAuthError }}>
+    <AuthContext.Provider value={{ user, profile, loading, isLoggingIn, authError, login, loginWithPasscode, updateAdminPassword, logout, clearAuthError }}>
       {children}
     </AuthContext.Provider>
   );

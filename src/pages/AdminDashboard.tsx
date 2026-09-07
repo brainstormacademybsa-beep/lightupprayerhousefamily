@@ -2091,7 +2091,7 @@ export default function AdminDashboard() {
               }`}
             >
               <Key size={14} />
-              <span>Admin Passcode</span>
+              <span>Admin Password</span>
             </button>
             <button
               type="button"
@@ -2116,7 +2116,7 @@ export default function AdminDashboard() {
             <form onSubmit={handlePasscodeSubmit} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-black uppercase tracking-wider text-gray-300 mb-1.5">
-                  Approved Administrator Email
+                  Authorized Administrator Email
                 </label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -2134,7 +2134,7 @@ export default function AdminDashboard() {
 
               <div>
                 <label className="block text-[11px] font-black uppercase tracking-wider text-gray-300 mb-1.5">
-                  Master Admin Passcode
+                  Admin Password
                 </label>
                 <div className="relative">
                   <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -2143,7 +2143,7 @@ export default function AdminDashboard() {
                     required
                     value={adminPasscode}
                     onChange={(e) => setAdminPasscode(e.target.value)}
-                    placeholder="Enter admin passcode"
+                    placeholder="Enter your admin password"
                     className="w-full pl-10 pr-11 py-3 bg-black/40 border border-white/15 rounded-xl text-sm text-white placeholder-gray-500 outline-none focus:border-[#F26522] focus:ring-1 focus:ring-[#F26522]"
                   />
                   <button
@@ -2154,6 +2154,7 @@ export default function AdminDashboard() {
                     {showPasscodeText ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                <p className="text-[10px] text-amber-300/80 mt-1">First-time login? The password you enter above will be automatically saved as your personal admin password.</p>
               </div>
 
               {(passcodeLocalError || authError) && (

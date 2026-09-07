@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { 
   Crown, ShieldCheck, UserPlus, Trash2, CheckCircle2, 
-  AlertCircle, Search, Mail, Shield, User, Sparkles, X, ChevronDown
+  AlertCircle, Search, Mail, Shield, User, Sparkles, X, ChevronDown, Key, Lock, RefreshCw
 } from 'lucide-react';
 import { collection, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -19,7 +19,7 @@ interface AdminStaffManagementTabProps {
 }
 
 export default function AdminStaffManagementTab({ members }: AdminStaffManagementTabProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, updateAdminPassword } = useAuth();
 
   // Super Admin helper check
   const isUserSuperAdmin = (u?: UserProfile | null, email?: string | null) => {
@@ -34,12 +34,55 @@ export default function AdminStaffManagementTab({ members }: AdminStaffManagemen
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [showChangePassModal, setShowChangePassModal] = useState(false);
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [confirmPasswordValue, setConfirmPasswordValue] = useState('');
+  const [passChangeLoading, setPassChangeLoading] = useState(false);
+  const [passChangeError, setPassChangeError] = useState<string | null>(null);
+  const [passChangeSuccess, setPassChangeSuccess] = useState<string | null>(null);
+
   const [newAdminMode, setNewAdminMode] = useState<'select_member' | 'email'>('select_member');
   const [selectedMemberUid, setSelectedMemberUid] = useState('');
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminRole, setNewAdminRole] = useState<'admin_assistant' | 'super_admin'>('admin_assistant');
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPassChangeError(null);
+    setPassChangeSuccess(null);
+
+    if (newPasswordValue.length < 4) {
+      setPassChangeError('Password must be at least 4 characters long.');
+      return;
+    }
+
+    if (newPasswordValue !== confirmPasswordValue) {
+      setPassChangeError('Passwords do not match.');
+      return;
+    }
+
+    setPassChangeLoading(true);
+    try {
+      const ok = await updateAdminPassword(newPasswordValue);
+      if (ok) {
+        setPassChangeSuccess('Your admin password has been updated successfully!');
+        setNewPasswordValue('');
+        setConfirmPasswordValue('');
+        setTimeout(() => {
+          setShowChangePassModal(false);
+          setPassChangeSuccess(null);
+        }, 2000);
+      } else {
+        setPassChangeError('Failed to update password.');
+      }
+    } catch (err: any) {
+      setPassChangeError(err?.message || 'Error changing password.');
+    } finally {
+      setPassChangeLoading(false);
+    }
+  };
 
   // Filtered admin staff: hide super admins if the viewer is not a Super Admin
   const adminStaff = members.filter(m => {
@@ -191,25 +234,35 @@ export default function AdminStaffManagementTab({ members }: AdminStaffManagemen
             )}
           </div>
 
-          {/* Add Admin Action Button */}
-          {isSuperAdmin ? (
+          {/* Add Admin & Password Actions */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
             <button
-              id="btn-open-add-admin-modal"
-              onClick={() => setShowAddAdminModal(true)}
-              className="px-6 py-3.5 bg-[#F26522] hover:bg-[#d9561a] text-white rounded-2xl font-black uppercase text-xs tracking-wider transition-all flex items-center space-x-2 shadow-lg shadow-[#F26522]/30 shrink-0"
+              onClick={() => setShowChangePassModal(true)}
+              className="px-5 py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-xs transition-all flex items-center justify-center space-x-2 border border-white/20 cursor-pointer shadow"
             >
-              <UserPlus size={18} />
-              <span>Add Administrator</span>
+              <Key size={16} className="text-amber-400 shrink-0" />
+              <span>Change My Admin Password</span>
             </button>
-          ) : (
-            <div className="px-4 py-3 bg-white/10 backdrop-blur rounded-2xl text-xs text-gray-300 border border-white/10 max-w-xs">
-              <div className="font-bold text-white flex items-center space-x-1.5 mb-1">
-                <Shield size={14} className="text-yellow-400" />
-                <span>Admin Assistant Access</span>
+
+            {isSuperAdmin ? (
+              <button
+                id="btn-open-add-admin-modal"
+                onClick={() => setShowAddAdminModal(true)}
+                className="px-6 py-3.5 bg-[#F26522] hover:bg-[#d9561a] text-white rounded-2xl font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center space-x-2 shadow-lg shadow-[#F26522]/30 cursor-pointer"
+              >
+                <UserPlus size={18} />
+                <span>Add Administrator</span>
+              </button>
+            ) : (
+              <div className="px-4 py-3 bg-white/10 backdrop-blur rounded-2xl text-xs text-gray-300 border border-white/10 max-w-xs">
+                <div className="font-bold text-white flex items-center space-x-1.5 mb-1">
+                  <Shield size={14} className="text-yellow-400" />
+                  <span>Admin Assistant Access</span>
+                </div>
+                <span>Role assignments and additions are managed by the Super Admin.</span>
               </div>
-              <span>Role assignments and additions are managed by the Super Admin.</span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -524,6 +577,113 @@ export default function AdminStaffManagementTab({ members }: AdminStaffManagemen
                 >
                   <UserPlus size={16} />
                   <span>{actionLoading ? 'Processing...' : 'Grant Admin Role'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Admin Password Modal */}
+      {showChangePassModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-gray-100 overflow-hidden">
+            <div className="p-6 bg-[#1A1F3C] text-white flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#F26522]/20 flex items-center justify-center text-[#F26522]">
+                  <Key size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg">Change Admin Password</h3>
+                  <p className="text-xs text-gray-300">{profile?.email}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowChangePassModal(false);
+                  setPassChangeError(null);
+                  setPassChangeSuccess(null);
+                }}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+              <p className="text-xs text-gray-600 leading-relaxed">
+                Update your custom personal password used to access the Light Up Administrator Portal.
+              </p>
+
+              {passChangeError && (
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-2xl flex items-center space-x-2">
+                  <AlertCircle size={16} className="shrink-0 text-red-500" />
+                  <span>{passChangeError}</span>
+                </div>
+              )}
+
+              {passChangeSuccess && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-2xl flex items-center space-x-2">
+                  <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
+                  <span>{passChangeSuccess}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  New Admin Password
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="password"
+                    required
+                    minLength={4}
+                    value={newPasswordValue}
+                    onChange={(e) => setNewPasswordValue(e.target.value)}
+                    placeholder="Enter new password (min. 4 chars)"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-[#F26522] focus:ring-1 focus:ring-[#F26522]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="password"
+                    required
+                    minLength={4}
+                    value={confirmPasswordValue}
+                    onChange={(e) => setConfirmPasswordValue(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-[#F26522] focus:ring-1 focus:ring-[#F26522]"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowChangePassModal(false)}
+                  className="px-5 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={passChangeLoading}
+                  className="px-6 py-3 bg-[#F26522] text-white rounded-xl font-black uppercase text-xs hover:bg-[#d9561a] shadow-lg shadow-[#F26522]/20 disabled:opacity-50 transition-all flex items-center space-x-2 cursor-pointer"
+                >
+                  {passChangeLoading ? (
+                    <RefreshCw size={16} className="animate-spin" />
+                  ) : (
+                    <Key size={16} />
+                  )}
+                  <span>{passChangeLoading ? 'Saving...' : 'Update Password'}</span>
                 </button>
               </div>
             </form>
